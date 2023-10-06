@@ -37,6 +37,7 @@ class MainScene extends Phaser.Scene {
         const leaf = new Leaf(this, pos, size);
 
         const leafGroup = this.physics.add.staticGroup(leaf.gameObject);
+        leafGroup.children.entries.forEach((entry) => { entry.setInteractive(); entry.on('pointerdown', () => console.log("clicked")); });
 
         return leaf;
         // return new Leaf(this, pos, size);
