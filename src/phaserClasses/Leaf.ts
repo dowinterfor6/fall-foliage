@@ -1,7 +1,8 @@
-enum LEAF_COLORS {
+export enum LEAF_COLORS {
   GREEN = 'GREEN',
   YELLOW = 'YELLOW',
-  RED = 'RED'
+  RED = 'RED',
+  BLACK = 'BLACK',
 }
 
 type Pos = {
@@ -18,6 +19,7 @@ class Leaf {
   // isHighlighted = false;
   gameObject: Phaser.Types.Physics.Arcade.SpriteWithDynamicBody;
   startingPos: Pos;
+  // pepsi: boolean;
 
   constructor(physics: Phaser.Physics.Arcade.ArcadePhysics, pos: Pos, ground: Phaser.Types.Physics.Arcade.ImageWithStaticBody) {
     this.startingPos = pos;
@@ -25,15 +27,14 @@ class Leaf {
     physics.add.collider(ground, this.gameObject);
     this.gameObject.setRotation(Phaser.Math.Between(0, 2 * Math.PI));
 
+    // TODO: Maybe I should "reset" in the constructor, oh well
+    // this.pepsi = false;
+
     this.gameObject.setTint(0xf0fff0);
 
     this.gameObject.setInteractive();
   }
 
-  // handlePointerDown() {
-  //   // TODO: I should probably use a proper state management thing here
-  //   this.progressColor()
-  // }
   setHandlePointer(handlePointer: () => void) {
     this.gameObject.on('pointerdown', handlePointer);
   }
@@ -54,6 +55,13 @@ class Leaf {
     this.gameObject.setGravityY(0);
     this.gameObject.setTint(0xf0fff0);
     this.color = LEAF_COLORS.GREEN;
+    // this.pepsi = false;
+  }
+
+  setPepsi() {
+    // this.pepsi = true;
+    this.color = LEAF_COLORS.BLACK;
+    this.gameObject.setTint(0x121212);
   }
 }
 

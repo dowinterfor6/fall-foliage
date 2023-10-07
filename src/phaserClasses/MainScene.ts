@@ -1,7 +1,8 @@
-import Leaf from "./Leaf";
+import Leaf, { LEAF_COLORS } from "./Leaf";
 import { initialMatrix } from "./treeLeavesUtil";
 
 const posCoeff = 20;
+const NUM_LEAVES_TO_CHANGE = 3;
 
 export const PHASER_GAME_SIZE = {
   width: 1200,
@@ -60,7 +61,9 @@ class MainScene extends Phaser.Scene {
 
       for (let row = -1; row <= 1; row++) {
         for (let col = -1; col <= 1; col++) {
-          positions.push([rowIdx + row, colIdx + col]);
+          if (!(row === 0 && col === 0)) {
+            positions.push([rowIdx + row, colIdx + col]);
+          }
         }
       }
 
@@ -75,15 +78,70 @@ class MainScene extends Phaser.Scene {
 
     this.leafMatrix.forEach((row, rowIdx) => {
       row.forEach((leaf, colIdx) => {
+        if (leaf === null) {
+          return;
+        }
+
         const handlePointer = () => {
           const neighbors = getNeighborEls(rowIdx, colIdx);
-          neighbors.forEach((neighbor) => {
-            neighbor?.progressColor();
-          });
-          // leaf?.progressColor();
+          const nonNullNeighbors = neighbors.filter<Leaf>((e): e is Leaf => e instanceof Leaf);
+          const availableNeighbors = nonNullNeighbors.filter((e) => ![LEAF_COLORS.BLACK, LEAF_COLORS.RED].includes(e.color));
+
+          if (availableNeighbors.length < NUM_LEAVES_TO_CHANGE) {
+            if (leaf.color !== LEAF_COLORS.BLACK) {
+              leaf.setPepsi();
+            }
+          } else {
+            // Rand num without replace
+            const getRandomIndicesFromRange = (lim: number) => {
+              const arr = [];
+              for (let i = 0; i < lim; i++) {
+                arr.push(i);
+              }
+
+              // Schwartzian transform
+              // https://stackoverflow.com/questions/2450954/how-to-randomize-shuffle-a-javascript-array
+              const shuffledArr = arr.map((val) => ({ val, sort: Math.random() })).sort((a, b) => a.sort - b.sort).map(({ val }) => val);
+
+              return shuffledArr.slice(0, NUM_LEAVES_TO_CHANGE);
+            };
+
+            const randomIndices = getRandomIndicesFromRange(availableNeighbors.length);
+
+            availableNeighbors.forEach((neighbor, idx) => {
+              if (randomIndices.includes(idx)) {
+                neighbor.progressColor();
+              }
+            });
+
+            // TODO: Check the ENTIRE matrix to see what needs updating
+
+            let needsToUpdate = true;
+
+            while (needsToUpdate) {
+              needsToUpdate = false;
+
+              outerLoop:
+              for (let rowIdx = 0; rowIdx < this.leafMatrix.length; rowIdx++) {
+                for (let colIdx = 0; colIdx < this.leafMatrix.length; colIdx++) {
+                  const currEl = this.leafMatrix[rowIdx][colIdx];
+                  if (!(currEl instanceof Leaf)) { continue; }
+                  const neighbors = getNeighborEls(rowIdx, colIdx);
+                  const nonNullNeighbors = neighbors.filter<Leaf>((e): e is Leaf => e instanceof Leaf);
+                  // TODO: Maybe add a function in Leaf to check if it's not black/red
+                  const availableNeighbors = nonNullNeighbors.filter((e) => ![LEAF_COLORS.BLACK, LEAF_COLORS.RED].includes(e.color));
+                  if (availableNeighbors.length < NUM_LEAVES_TO_CHANGE && ![LEAF_COLORS.BLACK, LEAF_COLORS.RED].includes(currEl.color)) {
+                    currEl.setPepsi();
+                    needsToUpdate = true;
+                    break outerLoop;
+                  }
+                }
+              }
+            }
+          }
         };
 
-        leaf?.setHandlePointer(handlePointer);
+        leaf.setHandlePointer(handlePointer);
       });
     });
 
