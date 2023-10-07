@@ -1,6 +1,6 @@
 import Phaser, { Game } from "phaser";
 import { useEffect, useRef, useState } from "react";
-import MainScene from "../phaserClasses/MainScene";
+import MainScene, { PHASER_GAME_SIZE } from "../phaserClasses/MainScene";
 
 const PhaserContainer: React.FC = () => {
   const phaserRoot = useRef<HTMLElement>(null);
@@ -10,14 +10,13 @@ const PhaserContainer: React.FC = () => {
     if (phaserRoot.current && phaserGame === undefined) {
       const config = {
         type: Phaser.AUTO,
-        width: 800,
-        height: 600,
+        width: PHASER_GAME_SIZE.width,
+        height: PHASER_GAME_SIZE.height,
         scene: MainScene,
         physics: {
           default: 'arcade',
           arcade: {
-            gravity: { y: 200 },
-            debug: true
+            gravity: { y: 0 },
           }
         },
         parent: phaserRoot.current
