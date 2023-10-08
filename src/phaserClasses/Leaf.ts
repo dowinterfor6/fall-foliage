@@ -26,10 +26,13 @@ class Leaf {
   // pepsi: boolean;
   leafMatrixPos: LeafMatrixPos;
 
-  constructor(physics: Phaser.Physics.Arcade.ArcadePhysics, pos: Pos, ground: Phaser.Types.Physics.Arcade.ImageWithStaticBody, matrixPos: LeafMatrixPos) {
+  constructor(physics: Phaser.Physics.Arcade.ArcadePhysics, pos: Pos, matrixPos: LeafMatrixPos, ground?: Phaser.Types.Physics.Arcade.ImageWithStaticBody) {
     this.startingPos = pos;
     this.gameObject = physics.add.sprite(pos.x, pos.y, 'leaf');
-    physics.add.collider(ground, this.gameObject);
+    // TODO: Unused, but keeping it here in case I change my mind
+    if (ground) {
+      physics.add.collider(ground, this.gameObject);
+    }
     this.gameObject.setRotation(Phaser.Math.Between(0, 2 * Math.PI));
 
     this.leafMatrixPos = matrixPos;
@@ -60,22 +63,23 @@ class Leaf {
   reset() {
     this.gameObject.setPosition(this.startingPos.x, this.startingPos.y);
     this.gameObject.setGravityY(0);
+    this.gameObject.setVelocity(0);
     this.gameObject.setTint(0xf0fff0);
     this.color = LEAF_COLORS.GREEN;
     // this.pepsi = false;
   }
 
-  setPepsi() {
-    // this.pepsi = true;
-    this.color = LEAF_COLORS.BLACK;
-    this.gameObject.setTint(0x121212);
-  }
+  // setPepsi() {
+  //   // this.pepsi = true;
+  //   this.color = LEAF_COLORS.BLACK;
+  //   this.gameObject.setTint(0x121212);
+  // }
 
   highlight(shouldHighlight: boolean) {
     if (shouldHighlight) {
       this.gameObject.setTint(0xddddff);
     } else {
-      this.gameObject.clearTint();
+      this.gameObject.setTint(0xf0fff0);
     }
   }
 }

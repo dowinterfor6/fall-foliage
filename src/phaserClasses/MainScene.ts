@@ -1,7 +1,8 @@
 import Leaf, { LEAF_COLORS } from "./Leaf";
 import { getNeighborEls, initialMatrix, sleep } from "./treeLeavesUtil";
 
-const posCoeff = 20;
+// TODO: For some reason if this is 30 everything breaks lol
+const posCoeff = 24;
 
 export const PHASER_GAME_SIZE = {
   width: 1200,
@@ -16,37 +17,32 @@ export const PHASER_CENTERS = {
 // TODO: Actually use a state machine in the future
 enum GAME_PHASE {
   SELECTION = 'SELECTION',
-  PROPAGATION = "PROPAGATION"
+  PROPAGATION = "PROPAGATION",
+  SCORE = "SCORE"
 }
 
 const PROPAGATION_WAIT_MS = 300;
 
-const LEAF_SELECTION_PENALTY_MULTIPLIER = 2;
+const LEAF_SELECTION_PENALTY_MULTIPLIER = 10;
 
 class MainScene extends Phaser.Scene {
   leafMatrix: Array<Array<Leaf | null>> = [];
   leavesToPropagate: Array<Leaf> = [];
-  initialLeafSelection: Array<Leaf> = [];
+  initialLeafSet: Set<Leaf> = new Set();
   gamePhase: GAME_PHASE = GAME_PHASE.SELECTION;
   convertedLeaves: number = 0;
 
   constructor() {
     super();
-    console.log("PHASE CHANGE TO: ", this.gamePhase);
     this.resetGame();
   }
 
   preload() {
-    this.load.image('trunk', '/trunk.png');
-    this.load.image('ground', '/ground.png');
-    this.load.image('background', '/background.png');
-    this.load.image('leaf', '/leafRoundSmol.png');
+    this.load.image('leaf', '/maple-leaf.png');
   }
 
   create() {
-    this.add.image(PHASER_CENTERS.x, PHASER_CENTERS.y, 'background');
-    const ground = this.physics.add.staticImage(PHASER_CENTERS.x, PHASER_CENTERS.y + 280, 'ground');
-    this.add.image(PHASER_CENTERS.x, PHASER_CENTERS.y, 'trunk');
+    // const ground = this.physics.add.staticImage(PHASER_CENTERS.x, PHASER_CENTERS.y + 280, 'ground');
 
     this.leafMatrix = initialMatrix.map((row, rowIdx) => {
       return row.map((el, colIdx) => {
@@ -60,7 +56,7 @@ class MainScene extends Phaser.Scene {
           y: (rowIdx - ((initialMatrix.length + 5.5) / 2)) * posCoeff + PHASER_CENTERS.y,
         };
 
-        const leaf = new Leaf(this.physics, pos, ground, { rowIdx, colIdx });
+        const leaf = new Leaf(this.physics, pos, { rowIdx, colIdx });
         // const tempText = this.add.text(pos.x - 10, pos.y - 10, `${colIdx}`);
         // tempText.setColor('black');
 
@@ -76,8 +72,13 @@ class MainScene extends Phaser.Scene {
 
         const handlePointer2 = () => {
           if (this.gamePhase === GAME_PHASE.SELECTION) {
-            this.initialLeafSelection.push(leaf);
-            leaf.highlight(true);
+            if (this.initialLeafSet.has(leaf)) {
+              this.initialLeafSet.delete(leaf);
+              leaf.highlight(false);
+            } else {
+              this.initialLeafSet.add(leaf);
+              leaf.highlight(true);
+            }
           }
         };
 
@@ -86,12 +87,15 @@ class MainScene extends Phaser.Scene {
     });
 
     const resetButton = this.add.circle(10, 10, 10, 0xffffff);
+    // I should probably just hide this when propagating
     resetButton.setInteractive();
     resetButton.on('pointerdown', () => {
-      this.resetGame();
-      this.leafMatrix.forEach((row) => {
-        row.forEach((leaf) => leaf?.reset());
-      });
+      if (this.gamePhase !== GAME_PHASE.PROPAGATION) {
+        this.resetGame();
+        this.leafMatrix.forEach((row) => {
+          row.forEach((leaf) => leaf?.reset());
+        });
+      }
     });
 
     const confirmSelections = this.add.circle(30, 10, 10, 0xffffff);
@@ -99,7 +103,7 @@ class MainScene extends Phaser.Scene {
     confirmSelections.on('pointerdown', async () => {
       if (this.gamePhase !== GAME_PHASE.PROPAGATION) {
         this.gamePhase = GAME_PHASE.PROPAGATION;
-        console.log("PHASE CHANGE TO: ", this.gamePhase);
+
         await this.startPropagation();
       }
     });
@@ -107,18 +111,15 @@ class MainScene extends Phaser.Scene {
 
   resetGame() {
     this.gamePhase = GAME_PHASE.SELECTION;
-    console.log("PHASE CHANGE TO: ", this.gamePhase);
     this.leavesToPropagate = [];
-    this.initialLeafSelection = [];
+    this.initialLeafSet.clear();
     this.convertedLeaves = 0;
   }
 
   async startPropagation() {
-    console.log("start Propagation");
-    // let newLeavesToPropagate: Array<Leaf> = [];
     const newLeavesToPropagate: Set<Leaf> = new Set();
 
-    this.initialLeafSelection.forEach((leaf) => {
+    this.initialLeafSet.forEach((leaf) => {
       leaf.highlight(false);
       leaf.progressColor();
 
@@ -150,7 +151,6 @@ class MainScene extends Phaser.Scene {
       //   });
       // }
     });
-
 
     while (newLeavesToPropagate.size > 0) {
       const copyNewLeaves = new Set(newLeavesToPropagate);
@@ -194,8 +194,12 @@ class MainScene extends Phaser.Scene {
       await sleep(PROPAGATION_WAIT_MS);
     }
 
+    await sleep(2500);
+
+    this.gamePhase = GAME_PHASE.SCORE;
     console.log("score: ", this.calculateScore());
-    console.log("selections used: ", this.initialLeafSelection.length);
+    console.log("selections used: ", this.initialLeafSet.size);
+    console.log("selections penalty: ", this.initialLeafSet.size * LEAF_SELECTION_PENALTY_MULTIPLIER);
   }
 
   calculateScore() {
