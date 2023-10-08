@@ -2,7 +2,14 @@ export enum LEAF_COLORS {
   GREEN = 'GREEN',
   YELLOW = 'YELLOW',
   RED = 'RED',
-  BLACK = 'BLACK',
+  // BLACK = 'BLACK',
+}
+
+export enum LEAF_COLORS_HEX {
+  GREEN = 0xb0b362,
+  YELLOW = 0xe2b16c,
+  RED = 0xcf5a62,
+  HIGHLIGHT = 0xddddff
 }
 
 type Pos = {
@@ -39,7 +46,7 @@ class Leaf {
     // TODO: Maybe I should "reset" in the constructor, oh well
     // this.pepsi = false;
 
-    this.gameObject.setTint(0xf0fff0);
+    this.gameObject.setTint(LEAF_COLORS_HEX.GREEN);
 
     this.gameObject.setInteractive();
   }
@@ -51,11 +58,10 @@ class Leaf {
   progressColor() {
     if (this.color === LEAF_COLORS.GREEN) {
       this.color = LEAF_COLORS.YELLOW;
-      // TODO: Make these into actual constants lol. and pick better colors
-      this.gameObject.setTint(0xfffff0);
+      this.gameObject.setTint(LEAF_COLORS_HEX.YELLOW);
     } else if (this.color === LEAF_COLORS.YELLOW) {
       this.color = LEAF_COLORS.RED;
-      this.gameObject.setTint(0xfff0f0);
+      this.gameObject.setTint(LEAF_COLORS_HEX.RED);
       this.gameObject.setGravityY(200);
     }
   }
@@ -64,7 +70,7 @@ class Leaf {
     this.gameObject.setPosition(this.startingPos.x, this.startingPos.y);
     this.gameObject.setGravityY(0);
     this.gameObject.setVelocity(0);
-    this.gameObject.setTint(0xf0fff0);
+    this.gameObject.setTint(LEAF_COLORS_HEX.GREEN);
     this.color = LEAF_COLORS.GREEN;
     // this.pepsi = false;
   }
@@ -77,9 +83,9 @@ class Leaf {
 
   highlight(shouldHighlight: boolean) {
     if (shouldHighlight) {
-      this.gameObject.setTint(0xddddff);
+      this.gameObject.setTint(LEAF_COLORS_HEX.HIGHLIGHT);
     } else {
-      this.gameObject.setTint(0xf0fff0);
+      this.gameObject.setTint(LEAF_COLORS_HEX.GREEN);
     }
   }
 }
