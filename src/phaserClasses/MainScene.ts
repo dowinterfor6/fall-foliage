@@ -63,10 +63,10 @@ class MainScene extends Phaser.Scene {
   }
 
   preload() {
-    this.load.image('leaf', '/maple-leaf.png');
-    this.load.image('restart-icon', '/restart-icon.png');
-    this.load.image('play-icon', '/play-icon.png');
-    this.load.image('title', '/title.png');
+    this.load.image('leaf', './maple-leaf.png');
+    this.load.image('restart-icon', './restart-icon.png');
+    this.load.image('play-icon', './play-icon.png');
+    this.load.image('title', './title.png');
   }
 
   create() {
