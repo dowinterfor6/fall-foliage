@@ -27,6 +27,7 @@ const LEAF_SELECTION_PENALTY_MULTIPLIER = 10;
 enum BUTTON_COLORS {
   DISABLED = 0xaaaaaa,
   // TODO: I'm so disappointed there aren't these states lol
+  //       TIL there's `makeButton` which has `gameobjectover` and other states
   // HOVER = 0xeee,
   // POINTER_DOWN = 0xddd
 }
@@ -67,6 +68,7 @@ class MainScene extends Phaser.Scene {
     this.load.image('restart-icon', './restart-icon.png');
     this.load.image('play-icon', './play-icon.png');
     this.load.image('title', './title.png');
+    this.load.audioSprite('sfx', './sfx_mixdown.json', ['./sfx.ogg']);
   }
 
   create() {
@@ -100,6 +102,7 @@ class MainScene extends Phaser.Scene {
 
         const handlePointer2 = () => {
           if (this.gamePhase === GAME_PHASE.SELECTION) {
+            this.sound.playAudioSprite('sfx', 'select');
             if (this.initialLeafSet.has(leaf)) {
               this.initialLeafSet.delete(leaf);
               leaf.highlight(false);
@@ -121,6 +124,7 @@ class MainScene extends Phaser.Scene {
     this.resetButton.setInteractive();
     this.resetButton.on('pointerdown', () => {
       if (this.gamePhase !== GAME_PHASE.PROPAGATION) {
+        this.sound.playAudioSprite('sfx', 'reset');
         this.resetGame();
         this.leafMatrix.forEach((row) => {
           row.forEach((leaf) => leaf?.reset());
@@ -132,6 +136,7 @@ class MainScene extends Phaser.Scene {
     this.confirmSelectionsButton.setInteractive();
     this.confirmSelectionsButton.on('pointerdown', async () => {
       if (this.gamePhase !== GAME_PHASE.PROPAGATION) {
+        this.sound.playAudioSprite('sfx', 'start');
         this.gamePhase = GAME_PHASE.PROPAGATION;
 
         this.resetButton?.setTint(BUTTON_COLORS.DISABLED);
@@ -220,10 +225,12 @@ reaches red and falls off.
   }
 
   async startPropagation() {
+    await sleep(300);
     const newLeavesToPropagate: Set<Leaf> = new Set();
 
     this.initialLeafSet.forEach((leaf) => {
       leaf.highlight(false);
+      this.sound.playAudioSprite('sfx', 'leaves');
       leaf.progressColor();
 
       const { rowIdx, colIdx } = leaf.leafMatrixPos;
@@ -260,6 +267,7 @@ reaches red and falls off.
       newLeavesToPropagate.clear();
 
       copyNewLeaves.forEach((leaf) => {
+        this.sound.playAudioSprite('sfx', 'leaves');
         leaf.progressColor();
 
         this.foliageScore?.setText(TEXTS.FOLIAGE_SCORE(this.calculateScore()));
@@ -301,6 +309,7 @@ reaches red and falls off.
 
     await sleep(2500);
 
+    this.sound.playAudioSprite('sfx', 'score');
     this.finalScore?.setText(TEXTS.FINAL_SCORE(this.calculateScore() - this.initialLeafSet.size * LEAF_SELECTION_PENALTY_MULTIPLIER));
     this.resetButton?.clearTint();
     this.resetButton?.setAlpha(1);
