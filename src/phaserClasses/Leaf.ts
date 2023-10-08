@@ -10,6 +10,10 @@ type Pos = {
   y: number;
 };
 
+type LeafMatrixPos = {
+  rowIdx: number,
+  colIdx: number;
+};
 
 class Leaf {
   // isVisible = true;
@@ -20,13 +24,15 @@ class Leaf {
   gameObject: Phaser.Types.Physics.Arcade.SpriteWithDynamicBody;
   startingPos: Pos;
   // pepsi: boolean;
+  leafMatrixPos: LeafMatrixPos;
 
-  constructor(physics: Phaser.Physics.Arcade.ArcadePhysics, pos: Pos, ground: Phaser.Types.Physics.Arcade.ImageWithStaticBody) {
+  constructor(physics: Phaser.Physics.Arcade.ArcadePhysics, pos: Pos, ground: Phaser.Types.Physics.Arcade.ImageWithStaticBody, matrixPos: LeafMatrixPos) {
     this.startingPos = pos;
     this.gameObject = physics.add.sprite(pos.x, pos.y, 'leaf');
     physics.add.collider(ground, this.gameObject);
     this.gameObject.setRotation(Phaser.Math.Between(0, 2 * Math.PI));
 
+    this.leafMatrixPos = matrixPos;
     // TODO: Maybe I should "reset" in the constructor, oh well
     // this.pepsi = false;
 
@@ -42,6 +48,7 @@ class Leaf {
   progressColor() {
     if (this.color === LEAF_COLORS.GREEN) {
       this.color = LEAF_COLORS.YELLOW;
+      // TODO: Make these into actual constants lol. and pick better colors
       this.gameObject.setTint(0xfffff0);
     } else if (this.color === LEAF_COLORS.YELLOW) {
       this.color = LEAF_COLORS.RED;
@@ -62,6 +69,14 @@ class Leaf {
     // this.pepsi = true;
     this.color = LEAF_COLORS.BLACK;
     this.gameObject.setTint(0x121212);
+  }
+
+  highlight(shouldHighlight: boolean) {
+    if (shouldHighlight) {
+      this.gameObject.setTint(0xddddff);
+    } else {
+      this.gameObject.clearTint();
+    }
   }
 }
 

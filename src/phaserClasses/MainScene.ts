@@ -1,8 +1,7 @@
 import Leaf, { LEAF_COLORS } from "./Leaf";
-import { initialMatrix } from "./treeLeavesUtil";
+import { getNeighborEls, initialMatrix, sleep } from "./treeLeavesUtil";
 
 const posCoeff = 20;
-const NUM_LEAVES_TO_CHANGE = 3;
 
 export const PHASER_GAME_SIZE = {
   width: 1200,
@@ -14,13 +13,27 @@ export const PHASER_CENTERS = {
   y: PHASER_GAME_SIZE.height / 2
 };
 
+// TODO: Actually use a state machine in the future
+enum GAME_PHASE {
+  SELECTION = 'SELECTION',
+  PROPAGATION = "PROPAGATION"
+}
+
+const PROPAGATION_WAIT_MS = 300;
+
+const LEAF_SELECTION_PENALTY_MULTIPLIER = 2;
 
 class MainScene extends Phaser.Scene {
   leafMatrix: Array<Array<Leaf | null>> = [];
-  // selectedLeaves: Array<any> = []
+  leavesToPropagate: Array<Leaf> = [];
+  initialLeafSelection: Array<Leaf> = [];
+  gamePhase: GAME_PHASE = GAME_PHASE.SELECTION;
+  convertedLeaves: number = 0;
 
   constructor() {
     super();
+    console.log("PHASE CHANGE TO: ", this.gamePhase);
+    this.resetGame();
   }
 
   preload() {
@@ -47,8 +60,7 @@ class MainScene extends Phaser.Scene {
           y: (rowIdx - ((initialMatrix.length + 5.5) / 2)) * posCoeff + PHASER_CENTERS.y,
         };
 
-        // const leaf = this.physics.add.sprite(pos.x, pos.y, 'leaf');
-        const leaf = new Leaf(this.physics, pos, ground);
+        const leaf = new Leaf(this.physics, pos, ground, { rowIdx, colIdx });
         // const tempText = this.add.text(pos.x - 10, pos.y - 10, `${colIdx}`);
         // tempText.setColor('black');
 
@@ -56,102 +68,138 @@ class MainScene extends Phaser.Scene {
       });
     });
 
-    const getNeighborEls = (rowIdx: number, colIdx: number): Array<Leaf | null> => {
-      const positions: Array<[number, number]> = [];
-
-      for (let row = -1; row <= 1; row++) {
-        for (let col = -1; col <= 1; col++) {
-          if (!(row === 0 && col === 0)) {
-            positions.push([rowIdx + row, colIdx + col]);
-          }
-        }
-      }
-
-      return positions.map(([rowIdx, colIdx]) => {
-        if (rowIdx < 0 || rowIdx >= this.leafMatrix.length || colIdx < 0 || colIdx >= this.leafMatrix[0].length) {
-          return null;
-        }
-
-        return this.leafMatrix[rowIdx][colIdx];
-      });
-    };
-
-    this.leafMatrix.forEach((row, rowIdx) => {
-      row.forEach((leaf, colIdx) => {
+    this.leafMatrix.forEach((row) => {
+      row.forEach((leaf) => {
         if (leaf === null) {
           return;
         }
 
-        const handlePointer = () => {
-          const neighbors = getNeighborEls(rowIdx, colIdx);
-          const nonNullNeighbors = neighbors.filter<Leaf>((e): e is Leaf => e instanceof Leaf);
-          const availableNeighbors = nonNullNeighbors.filter((e) => ![LEAF_COLORS.BLACK, LEAF_COLORS.RED].includes(e.color));
-
-          if (availableNeighbors.length < NUM_LEAVES_TO_CHANGE) {
-            if (leaf.color !== LEAF_COLORS.BLACK) {
-              leaf.setPepsi();
-            }
-          } else {
-            // Rand num without replace
-            const getRandomIndicesFromRange = (lim: number) => {
-              const arr = [];
-              for (let i = 0; i < lim; i++) {
-                arr.push(i);
-              }
-
-              // Schwartzian transform
-              // https://stackoverflow.com/questions/2450954/how-to-randomize-shuffle-a-javascript-array
-              const shuffledArr = arr.map((val) => ({ val, sort: Math.random() })).sort((a, b) => a.sort - b.sort).map(({ val }) => val);
-
-              return shuffledArr.slice(0, NUM_LEAVES_TO_CHANGE);
-            };
-
-            const randomIndices = getRandomIndicesFromRange(availableNeighbors.length);
-
-            availableNeighbors.forEach((neighbor, idx) => {
-              if (randomIndices.includes(idx)) {
-                neighbor.progressColor();
-              }
-            });
-
-            // TODO: Check the ENTIRE matrix to see what needs updating
-
-            let needsToUpdate = true;
-
-            while (needsToUpdate) {
-              needsToUpdate = false;
-
-              outerLoop:
-              for (let rowIdx = 0; rowIdx < this.leafMatrix.length; rowIdx++) {
-                for (let colIdx = 0; colIdx < this.leafMatrix.length; colIdx++) {
-                  const currEl = this.leafMatrix[rowIdx][colIdx];
-                  if (!(currEl instanceof Leaf)) { continue; }
-                  const neighbors = getNeighborEls(rowIdx, colIdx);
-                  const nonNullNeighbors = neighbors.filter<Leaf>((e): e is Leaf => e instanceof Leaf);
-                  // TODO: Maybe add a function in Leaf to check if it's not black/red
-                  const availableNeighbors = nonNullNeighbors.filter((e) => ![LEAF_COLORS.BLACK, LEAF_COLORS.RED].includes(e.color));
-                  if (availableNeighbors.length < NUM_LEAVES_TO_CHANGE && ![LEAF_COLORS.BLACK, LEAF_COLORS.RED].includes(currEl.color)) {
-                    currEl.setPepsi();
-                    needsToUpdate = true;
-                    break outerLoop;
-                  }
-                }
-              }
-            }
+        const handlePointer2 = () => {
+          if (this.gamePhase === GAME_PHASE.SELECTION) {
+            this.initialLeafSelection.push(leaf);
+            leaf.highlight(true);
           }
         };
 
-        leaf.setHandlePointer(handlePointer);
+        leaf.setHandlePointer(handlePointer2);
       });
     });
 
     const resetButton = this.add.circle(10, 10, 10, 0xffffff);
     resetButton.setInteractive();
     resetButton.on('pointerdown', () => {
+      this.resetGame();
       this.leafMatrix.forEach((row) => {
         row.forEach((leaf) => leaf?.reset());
       });
     });
+
+    const confirmSelections = this.add.circle(30, 10, 10, 0xffffff);
+    confirmSelections.setInteractive();
+    confirmSelections.on('pointerdown', async () => {
+      if (this.gamePhase !== GAME_PHASE.PROPAGATION) {
+        this.gamePhase = GAME_PHASE.PROPAGATION;
+        console.log("PHASE CHANGE TO: ", this.gamePhase);
+        await this.startPropagation();
+      }
+    });
+  }
+
+  resetGame() {
+    this.gamePhase = GAME_PHASE.SELECTION;
+    console.log("PHASE CHANGE TO: ", this.gamePhase);
+    this.leavesToPropagate = [];
+    this.initialLeafSelection = [];
+    this.convertedLeaves = 0;
+  }
+
+  async startPropagation() {
+    console.log("start Propagation");
+    // let newLeavesToPropagate: Array<Leaf> = [];
+    const newLeavesToPropagate: Set<Leaf> = new Set();
+
+    this.initialLeafSelection.forEach((leaf) => {
+      leaf.highlight(false);
+      leaf.progressColor();
+
+      const { rowIdx, colIdx } = leaf.leafMatrixPos;
+
+      const neighborEls = getNeighborEls(this.leafMatrix, rowIdx, colIdx);
+      const nonNullNeighbors = neighborEls.filter<Leaf>((el): el is Leaf => el instanceof Leaf);
+
+      if (nonNullNeighbors.length % 2 === 0) {
+        // Even propagates edges
+        const edges = [[rowIdx - 1, colIdx + 1], [rowIdx - 1, colIdx - 1], [rowIdx + 1, colIdx + 1], [rowIdx + 1, colIdx - 1]];
+
+        edges.forEach(([rowIdx, colIdx]) => {
+          const foundLeaf = nonNullNeighbors.find((leaf) => leaf.leafMatrixPos.rowIdx === rowIdx && leaf.leafMatrixPos.colIdx === colIdx);
+          if (foundLeaf) {
+            newLeavesToPropagate.add(foundLeaf);
+          }
+        });
+      }
+      //  else {
+      //   // Odd propagates middles
+      //   const middles = [[rowIdx - 1, colIdx], [rowIdx + 1, colIdx], [rowIdx, colIdx + 1], [rowIdx, colIdx - 1]];
+
+      //   middles.forEach(([rowIdx, colIdx]) => {
+      //     const foundLeaf = nonNullNeighbors.find((leaf) => leaf.leafMatrixPos.rowIdx === rowIdx && leaf.leafMatrixPos.colIdx === colIdx);
+      //     if (foundLeaf) {
+      //       newLeavesToPropagate.add(foundLeaf);
+      //     }
+      //   });
+      // }
+    });
+
+
+    while (newLeavesToPropagate.size > 0) {
+      const copyNewLeaves = new Set(newLeavesToPropagate);
+      newLeavesToPropagate.clear();
+
+      copyNewLeaves.forEach((leaf) => {
+        leaf.progressColor();
+
+        if (leaf.color !== LEAF_COLORS.RED) {
+          // TODO: This is terrible since I just copied from above but oh well
+          const { rowIdx, colIdx } = leaf.leafMatrixPos;
+
+          const neighborEls = getNeighborEls(this.leafMatrix, rowIdx, colIdx);
+          const nonNullNeighbors = neighborEls.filter<Leaf>((el): el is Leaf => el instanceof Leaf);
+
+          if (nonNullNeighbors.length % 2 === 0) {
+            // Even propagates edges
+            const edges = [[rowIdx - 1, colIdx + 1], [rowIdx - 1, colIdx - 1], [rowIdx + 1, colIdx + 1], [rowIdx + 1, colIdx - 1]];
+
+            edges.forEach(([rowIdx, colIdx]) => {
+              const foundLeaf = nonNullNeighbors.find((leaf) => leaf.leafMatrixPos.rowIdx === rowIdx && leaf.leafMatrixPos.colIdx === colIdx);
+              if (foundLeaf) {
+                newLeavesToPropagate.add(foundLeaf);
+              }
+            });
+          }
+          //  else {
+          //   // Odd propagates middles
+          //   const middles = [[rowIdx - 1, colIdx], [rowIdx + 1, colIdx], [rowIdx, colIdx + 1], [rowIdx, colIdx - 1]];
+
+          //   middles.forEach(([rowIdx, colIdx]) => {
+          //     const foundLeaf = nonNullNeighbors.find((leaf) => leaf.leafMatrixPos.rowIdx === rowIdx && leaf.leafMatrixPos.colIdx === colIdx);
+          //     if (foundLeaf) {
+          //       newLeavesToPropagate.add(foundLeaf);
+          //     }
+          //   });
+          // }
+        }
+      });
+
+      await sleep(PROPAGATION_WAIT_MS);
+    }
+
+    console.log("score: ", this.calculateScore());
+    console.log("selections used: ", this.initialLeafSelection.length);
+  }
+
+  calculateScore() {
+    return this.leafMatrix.reduce((sum, row) => sum + row.reduce((rowSum, el) => el?.color === LEAF_COLORS.RED ? rowSum + 1 : rowSum, 0), 0);
   }
 }
 

@@ -1,3 +1,5 @@
+import Leaf from "./Leaf";
+
 export const initialMatrix2: Array<Array<0 | 1>> = [
   //[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 0, 1, 2, 3, 4, 5, 6, 7]  
   [0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
@@ -45,3 +47,25 @@ export const initialMatrix: Array<Array<0 | 1>> = [
   [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
   [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
 ];
+
+export const getNeighborEls = (leafMatrix: Array<Array<Leaf | null>>, rowIdx: number, colIdx: number): Array<Leaf | null> => {
+  const positions: Array<[number, number]> = [];
+
+  for (let row = -1; row <= 1; row++) {
+    for (let col = -1; col <= 1; col++) {
+      if (!(row === 0 && col === 0)) {
+        positions.push([rowIdx + row, colIdx + col]);
+      }
+    }
+  }
+
+  return positions.map(([rowIdx, colIdx]) => {
+    if (rowIdx < 0 || rowIdx >= leafMatrix.length || colIdx < 0 || colIdx >= leafMatrix[0].length) {
+      return null;
+    }
+
+    return leafMatrix[rowIdx][colIdx];
+  });
+};
+
+export const sleep = (ms: number) => new Promise(res => setTimeout(res, ms));
