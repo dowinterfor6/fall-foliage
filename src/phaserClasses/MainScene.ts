@@ -50,8 +50,12 @@ class MainScene extends Phaser.Scene {
   initialLeafSet: Set<Leaf> = new Set();
   gamePhase: GAME_PHASE = GAME_PHASE.SELECTION;
   convertedLeaves: number = 0;
+
   resetButton: Phaser.GameObjects.Image | null = null;
   confirmSelectionsButton: Phaser.GameObjects.Image | null = null;
+  soundOnButton: Phaser.GameObjects.Image | null = null;
+  soundOffButton: Phaser.GameObjects.Image | null = null;
+
   foliageScore: Phaser.GameObjects.Text | null = null;
   numSelections: Phaser.GameObjects.Text | null = null;
   // selectionsPenalty: Phaser.GameObjects.Text | null = null;
@@ -68,6 +72,8 @@ class MainScene extends Phaser.Scene {
     this.load.image('restart-icon', './restart-icon.png');
     this.load.image('play-icon', './play-icon.png');
     this.load.image('title', './title.png');
+    this.load.image('sound-on', './sound-on.png');
+    this.load.image('sound-off', './sound-off.png');
     this.load.audioSprite('sfx', './sfx_mixdown.json', ['./sfx.ogg']);
   }
 
@@ -112,6 +118,14 @@ class MainScene extends Phaser.Scene {
             }
             this.numSelections?.setText(TEXTS.NUM_SELECTIONS(this.initialLeafSet.size));
             this.selectionsPenaltyScore?.setText(TEXTS.SELECTION_PENALTY_SCORE(this.initialLeafSet.size * LEAF_SELECTION_PENALTY_MULTIPLIER));
+
+            if (this.initialLeafSet.size > 0) {
+              this.confirmSelectionsButton?.clearTint();
+              this.confirmSelectionsButton?.setAlpha(1);
+            } else {
+              this.confirmSelectionsButton?.setTint(BUTTON_COLORS.DISABLED);
+              this.confirmSelectionsButton?.setAlpha(0.6);
+            }
           }
         };
 
@@ -133,9 +147,13 @@ class MainScene extends Phaser.Scene {
     });
 
     this.confirmSelectionsButton = this.add.image(PHASER_CENTERS.x + 210, PHASER_CENTERS.y - 185, 'play-icon');
+    this.confirmSelectionsButton.setTint(BUTTON_COLORS.DISABLED);
+    this.confirmSelectionsButton?.setAlpha(0.6);
     this.confirmSelectionsButton.setInteractive();
     this.confirmSelectionsButton.on('pointerdown', async () => {
-      if (this.gamePhase !== GAME_PHASE.PROPAGATION) {
+      if (this.gamePhase === GAME_PHASE.SELECTION && this.initialLeafSet.size > 0) {
+        this.confirmSelectionsButton?.setTint(BUTTON_COLORS.DISABLED);
+        this.confirmSelectionsButton?.setAlpha(0.6);
         this.sound.playAudioSprite('sfx', 'start');
         this.gamePhase = GAME_PHASE.PROPAGATION;
 
@@ -143,6 +161,24 @@ class MainScene extends Phaser.Scene {
         this.resetButton?.setAlpha(0.6);
         await this.startPropagation();
       }
+    });
+
+    // TODO: I could do better, but running out of time
+    this.soundOnButton = this.add.image(PHASER_CENTERS.x + 275, PHASER_CENTERS.y - 185, 'sound-on');
+    this.soundOnButton.setInteractive();
+    this.soundOnButton.on('pointerdown', () => {
+      this.sound.setMute(true);
+      this.soundOnButton?.setAlpha(0);
+      this.soundOffButton?.setAlpha(1);
+    });
+
+    this.soundOffButton = this.add.image(PHASER_CENTERS.x + 275, PHASER_CENTERS.y - 185, 'sound-off');
+    this.soundOffButton.setAlpha(0);
+    this.soundOffButton.setInteractive();
+    this.soundOffButton.on('pointerdown', () => {
+      this.sound.setMute(false);
+      this.soundOnButton?.setAlpha(1);
+      this.soundOffButton?.setAlpha(0);
     });
 
     // Font credits: https://mistifonts.com/falling-for-autumn/
@@ -153,15 +189,15 @@ class MainScene extends Phaser.Scene {
   }
 
   createTexts() {
-    this.foliageScore = this.add.text(PHASER_CENTERS.x + 120, PHASER_CENTERS.y - 140, TEXTS.FOLIAGE_SCORE());
+    this.foliageScore = this.add.text(PHASER_CENTERS.x + 120, PHASER_CENTERS.y - 140, TEXTS.FOLIAGE_SCORE()).setFontSize(20);
     this.numSelections = this.add.text(PHASER_CENTERS.x + 120, PHASER_CENTERS.y - 115, TEXTS.NUM_SELECTIONS());
     const selectionText = this.add.text(PHASER_CENTERS.x + 120, PHASER_CENTERS.y - 90, `  Selection Penalty (x${LEAF_SELECTION_PENALTY_MULTIPLIER})`);
     this.selectionsPenaltyScore = this.add.text(PHASER_CENTERS.x + 120, PHASER_CENTERS.y - 65, TEXTS.SELECTION_PENALTY_SCORE());
-    this.finalScore = this.add.text(PHASER_CENTERS.x + 120, PHASER_CENTERS.y - 40, TEXTS.FINAL_SCORE());
+    this.finalScore = this.add.text(PHASER_CENTERS.x + 120, PHASER_CENTERS.y - 40, TEXTS.FINAL_SCORE()).setFontSize(20);
 
     [this.foliageScore, this.numSelections, selectionText, this.selectionsPenaltyScore, this.finalScore].forEach((text) => {
       text.setTint(FONT_COLOR);
-      text.setAlpha(0.9);
+      // text.setAlpha(0.9);
       text.setFontStyle('bold');
     });
   }
